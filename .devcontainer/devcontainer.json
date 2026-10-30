@@ -1,0 +1,12 @@
+{
+  "name": "SNMP polling vs gNMI telemetry",
+  "image": "ghcr.io/srl-labs/containerlab/devcontainer-dind-slim:0.68.0",
+  "privileged": true,
+  "hostRequirements": {"cpus": 4, "memory": "8gb", "storage": "32gb"},
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {"label": "Grafana dashboard", "onAutoForward": "openBrowser"}
+  },
+  "postStartCommand": "bash scripts/start.sh",
+  "remoteUser": "vscode"
+}

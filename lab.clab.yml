@@ -1,0 +1,15 @@
+name: telemetry
+topology:
+  nodes:
+    srl:
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: configs/srl.cli
+    peer:
+      kind: linux
+      image: alpine:3.21.3
+      cmd: sleep infinity
+      exec:
+        - ip link set eth1 up
+  links:
+    - endpoints: ["srl:e1-1", "peer:eth1"]
