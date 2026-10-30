@@ -1,0 +1,11 @@
+name: Validate lab
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m py_compile app/collector.py
+      - run: for script in scripts/*.sh; do bash -n "$script"; done
+      - run: docker compose config --quiet
+      - run: docker build -t ibn-gnmi-collector ./app
