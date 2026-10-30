@@ -3,12 +3,7 @@
 A Containerlab demo using a real Nokia SR Linux router, Prometheus's SNMP
 exporter, gNMIc, Prometheus and Grafana. There is no custom collector script.
 
-```text
-SR Linux ethernet-1/1 ── Alpine peer
-       │
-       ├── SNMP ── snmp_exporter ── polling every 10s ──┐
-       └── gNMI ── gNMIc (started manually) ────────────┴── Prometheus → Grafana
-```
+![Demo network: SNMP polling and gNMI telemetry from SR Linux to Grafana](assets/demo-topology.svg)
 
 SNMP polling starts automatically. The gNMI subscription starts only when you
 run it during the demo. Its actual received messages appear in the CLI, and
