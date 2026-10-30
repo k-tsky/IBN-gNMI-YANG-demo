@@ -1,0 +1,36 @@
+services:
+  collector:
+    build: ./app
+    restart: unless-stopped
+    environment:
+      GNMI_HOST: clab-telemetry-srl
+      GNMI_PORT: "57400"
+      POLL_SECONDS: "10"
+    networks: [lab]
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    restart: unless-stopped
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [lab]
+  grafana:
+    image: grafana/grafana:11.6.0
+    restart: unless-stopped
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/telemetry.json
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./configs/grafana:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+    networks: [lab]
+networks:
+  lab:
+    external: true
+    name: clab
