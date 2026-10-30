@@ -2,7 +2,7 @@
   "uid": "gnmi-demo",
   "title": "SNMP polling | gNMI ON_CHANGE",
   "schemaVersion": 40,
-  "version": 1,
+  "version": 3,
   "editable": false,
   "refresh": "5s",
   "time": {
@@ -17,23 +17,48 @@
   "panels": [
     {
       "id": 1,
-      "title": "Same interface: SNMP polling vs gNMI ON_CHANGE",
-      "type": "timeseries",
+      "title": "Real SNMP polling vs gNMI ON_CHANGE",
+      "type": "text",
       "gridPos": {
         "x": 0,
         "y": 0,
         "w": 24,
-        "h": 8
+        "h": 4
       },
+      "options": {
+        "mode": "markdown",
+        "content": "SNMP is polled every **10 seconds**. Start gNMIc manually using the README; its latest received state is scraped every **1 second**.\n\n**1 = UP, 0 = DOWN.** The raw table shows the router's received gNMI state labels. Very short transitions may be missed by Prometheus; the gNMIc CLI shows received notifications. Exporter reachability does not prove a healthy subscription.\n\nCounters: SNMP covers the selected time range; gNMI covers the current receiver run. DOWN counters count received DOWN observations, not unique outages."
+      }
+    },
+    {
+      "id": 2,
+      "title": "ethernet-1/1 \u2014 last observed state",
+      "type": "timeseries",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 8
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "demo_interface_up",
-          "legendFormat": "{{method}}",
+          "expr": "max(ifOperStatus{job=\"snmp\",ifName=\"ethernet-1/1\",ifOperStatus=\"up\"})",
+          "legendFormat": "SNMP polling",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "interval": "1s"
+        },
+        {
+          "refId": "B",
+          "expr": "max(srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\",oper_state=\"up\"}) or (0 * max(srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\"}))",
+          "legendFormat": "gNMI ON_CHANGE",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -43,79 +68,71 @@
       ],
       "fieldConfig": {
         "defaults": {
+          "min": 0,
+          "max": 1,
           "color": {
             "mode": "palette-classic"
           },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "stepAfter",
-            "fillOpacity": 8,
-            "showPoints": "always"
-          },
-          "min": 0,
-          "max": 1
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "poll"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP polling"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "stream"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "gNMI ON_CHANGE"
-              }
-            ]
+            "showPoints": "always",
+            "fillOpacity": 5
           }
-        ]
+        },
+        "overrides": []
       },
       "options": {
         "legend": {
           "displayMode": "list",
           "placement": "bottom"
-        },
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
         }
-      },
-      "description": "1 = UP; 0 = DOWN. Last observed state from SNMP polling and gNMI ON_CHANGE. Consult collector health and observation age. Prometheus samples every second."
+      }
     },
     {
-      "id": 2,
-      "title": "Observed DOWN events",
+      "id": 7,
+      "title": "Received DOWN observations",
+      "description": "SNMP: successful DOWN polls in the selected time range. gNMI: received DOWN state updates in the current gNMIc run, counted by its standard filtered event output. A long outage may produce several DOWN polls; these are observations, not unique physical failures. Initial/resync DOWN notifications also count.",
       "type": "stat",
-      "gridPos": {
-        "x": 0,
-        "y": 8,
-        "w": 8,
-        "h": 5
-      },
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 6
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "demo_down_events_total",
-          "legendFormat": "{{method}}",
+          "expr": "sum(sum_over_time(ifOperStatus{job=\"snmp\",ifName=\"ethernet-1/1\",ifOperStatus=\"down\"}[$__range]))",
+          "legendFormat": "SNMP polling",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(gnmic_file_output_number_messages_writes_total{job=\"gnmi-internal\",name=\"down-observations\"})",
+          "legendFormat": "gNMI ON_CHANGE",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -124,49 +141,140 @@
       ],
       "fieldConfig": {
         "defaults": {
+          "min": 0,
+          "decimals": 0,
           "color": {
             "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "stepAfter",
-            "fillOpacity": 8,
-            "showPoints": "always"
-          },
-          "min": 0
+          }
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "poll"
+              "options": "SNMP polling"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "SNMP polling"
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "stream"
+              "options": "gNMI ON_CHANGE"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "gNMI ON_CHANGE"
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
               }
             ]
           }
         ]
       },
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Received SNMP / gNMI observations",
+      "description": "SNMP: successful interface polls in the selected time range (the UP state-set series contains one 0/1 sample per poll). gNMI: received interface state updates since this gNMIc run started, including initial state and excluding sync-only messages. gNMI totals reset on receiver restart. Both display their last observed count when collection stops.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time(ifOperStatus{job=\"snmp\",ifName=\"ethernet-1/1\",ifOperStatus=\"up\"}[$__range]))",
+          "legendFormat": "SNMP polling",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
+        {
+          "refId": "B",
+          "expr": "sum(gnmic_file_output_number_messages_writes_total{job=\"gnmi-internal\",name=\"observations\"})",
+          "legendFormat": "gNMI ON_CHANGE",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SNMP polling"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gNMI ON_CHANGE"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -178,77 +286,59 @@
     },
     {
       "id": 3,
-      "title": "Received SNMP / gNMI observations",
+      "title": "SNMP last state",
       "type": "stat",
-      "gridPos": {
-        "x": 8,
-        "y": 8,
-        "w": 8,
-        "h": 5
-      },
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 6,
+        "h": 5
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "demo_observations_total",
-          "legendFormat": "{{method}}",
+          "expr": "max(ifOperStatus{job=\"snmp\",ifName=\"ethernet-1/1\",ifOperStatus=\"up\"})",
+          "legendFormat": "SNMP",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
-          }
+          },
+          "interval": "1s"
         }
       ],
       "fieldConfig": {
         "defaults": {
+          "min": 0,
+          "max": 1,
           "color": {
             "mode": "palette-classic"
           },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "stepAfter",
-            "fillOpacity": 8,
-            "showPoints": "always"
-          },
-          "min": 0
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ]
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "poll"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP polling"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "stream"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "gNMI ON_CHANGE"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": "",
           "values": false
@@ -257,103 +347,23 @@
     },
     {
       "id": 4,
-      "title": "Collector transport health",
+      "title": "gNMI last state",
       "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "gridPos": {
-        "x": 16,
-        "y": 8,
-        "w": 8,
+        "x": 6,
+        "y": 18,
+        "w": 6,
         "h": 5
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
       "targets": [
         {
           "refId": "A",
-          "expr": "demo_collector_healthy",
-          "legendFormat": "{{method}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "stepAfter",
-            "fillOpacity": 8,
-            "showPoints": "always"
-          },
-          "min": 0
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "poll"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP polling"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "stream"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "gNMI ON_CHANGE"
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "description": "1 = no detected transport error; 0 = disconnected or waiting. Silence alone is not a liveness check."
-    },
-    {
-      "id": 5,
-      "title": "Age of last observation (seconds)",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 0,
-        "y": 13,
-        "w": 12,
-        "h": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "time() - demo_last_observation_seconds",
-          "legendFormat": "{{method}}",
+          "expr": "max(srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\",oper_state=\"up\"}) or (0 * max(srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\"}))",
+          "legendFormat": "gNMI",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -363,52 +373,94 @@
       ],
       "fieldConfig": {
         "defaults": {
+          "min": 0,
+          "max": 1,
           "color": {
             "mode": "palette-classic"
           },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "stepAfter",
-            "fillOpacity": 8,
-            "showPoints": "always"
-          },
-          "min": 0
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ]
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "poll"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP polling"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "stream"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "gNMI ON_CHANGE"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Prometheus scrape reachability",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=~\"snmp|gnmi\"}",
+          "legendFormat": "{{job}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "interval": "1s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Unavailable / not started",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Reachable",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
           ],
           "fields": "",
           "values": false
@@ -417,82 +469,38 @@
     },
     {
       "id": 6,
-      "title": "Collection errors",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 12,
-        "y": 13,
-        "w": 12,
-        "h": 7
-      },
+      "title": "Raw gNMIc metrics \u2014 received state is in oper_state label",
+      "type": "table",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 24,
+        "h": 7
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "demo_errors_total",
-          "legendFormat": "{{method}}",
+          "expr": "srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\"}",
+          "legendFormat": "",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "interval": "1s"
+          "interval": "1s",
+          "format": "table",
+          "instant": true
         }
       ],
       "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "stepAfter",
-            "fillOpacity": 8,
-            "showPoints": "always"
-          },
-          "min": 0
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "poll"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP polling"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "stream"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "gNMI ON_CHANGE"
-              }
-            ]
-          }
-        ]
+        "defaults": {},
+        "overrides": []
       },
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
+        "showHeader": true
       }
     }
   ]

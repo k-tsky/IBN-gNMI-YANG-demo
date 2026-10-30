@@ -5,7 +5,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 -m py_compile app/collector.py
       - run: for script in scripts/*.sh; do bash -n "$script"; done
-      - run: docker compose config --quiet
-      - run: docker build -t ibn-gnmi-collector ./app
+      - run: docker compose --profile gnmi config --quiet
+      - run: python3 -m json.tool dashboards/telemetry.json > /dev/null
+      - run: >-
+          docker run --rm --network none
+          -v "$PWD/configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro"
+          --entrypoint promtool prom/prometheus:v3.2.1
+          check config /etc/prometheus/prometheus.yml

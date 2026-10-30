@@ -1,11 +1,16 @@
 services:
-  collector:
-    build: ./app
+  snmp-exporter:
+    image: prom/snmp-exporter:v0.29.0
     restart: unless-stopped
-    environment:
-      GNMI_HOST: clab-telemetry-srl
-      GNMI_PORT: "57400"
-      POLL_SECONDS: "10"
+    volumes:
+      - ./configs/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
+    networks: [lab]
+  gnmic:
+    image: ghcr.io/openconfig/gnmic:0.42.1
+    profiles: [gnmi]
+    command: ["--config", "/etc/gnmic/config.yml", "subscribe"]
+    volumes:
+      - ./configs/gnmic.yml:/etc/gnmic/config.yml:ro
     networks: [lab]
   prometheus:
     image: prom/prometheus:v3.2.1

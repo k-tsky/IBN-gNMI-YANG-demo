@@ -1,0 +1,48 @@
+username: admin
+password: NokiaSrl1!
+skip-verify: true
+encoding: json_ietf
+api-server:
+  address: :7890
+  enable-metrics: true
+targets:
+  clab-telemetry-srl:57400:
+subscriptions:
+  interface-state:
+    paths:
+      - /interface[name=ethernet-1/1]/oper-state
+    mode: stream
+    stream-mode: on-change
+outputs:
+  prometheus:
+    type: prometheus
+    listen: :9804
+    strings-as-labels: true
+    expiration: -1s
+    # Keep the latest value per gNMI path, not a series for every past state.
+    cache: {}
+  stdout:
+    type: file
+    file-type: stdout
+    format: json
+  observations:
+    type: file
+    filename: /dev/null
+    format: event
+    split-events: true
+    enable-metrics: true
+    event-processors: [interface-observations]
+  down-observations:
+    type: file
+    filename: /dev/null
+    format: event
+    split-events: true
+    enable-metrics: true
+    event-processors: [interface-down]
+processors:
+  interface-observations:
+    event-allow:
+      condition: '.tags.interface_name == "ethernet-1/1" and (.values | length > 0)'
+  interface-down:
+    event-allow:
+      condition: '.tags.interface_name == "ethernet-1/1" and any(.values[]; . == "down")'
