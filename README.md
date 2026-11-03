@@ -1,23 +1,19 @@
-# SNMP polling vs gNMI telemetry
+# Show a real gNMI interface event
 
-A Containerlab demo using a real Nokia SR Linux router, Prometheus's SNMP
-exporter, gNMIc, Prometheus and Grafana. There is no custom collector script.
+Log in to a Nokia SR Linux router, disable an interface, and watch gNMI report
+DOWN. Enable it again and watch UP arrive. SNMP polling and Grafana run in the
+background. All protocol messages and interface states come from the real router.
 
-![Demo network: SNMP polling and gNMI telemetry from SR Linux to Grafana](assets/demo-topology.svg)
+![Demo network](assets/demo-topology.svg)
 
-SNMP polling starts automatically. The gNMI subscription starts only when you
-run it during the demo. Its actual received messages appear in the CLI, and
-the same gNMIc process exports the latest received state for Grafana.
+## Start before presenting
 
-## Start the lab
-
-**Codespaces:** open [this repository in Codespaces](https://codespaces.new/k-tsky/IBN-gNMI-YANG-demo?quickstart=1),
-choose a 4-core machine and wait for **Lab ready**. Setup is automatic after
-these files have been pushed to GitHub.
+**Codespaces:** [open the repository in Codespaces](https://codespaces.new/k-tsky/IBN-gNMI-YANG-demo?quickstart=1),
+choose a 4-core machine and wait for **Lab ready**.
 
 **Local Windows/macOS:** start Docker Desktop with Linux containers, open this
-folder in VS Code, install Microsoft's **Dev Containers** extension, and select
-**Dev Containers: Reopen in Container**. Wait for **Lab ready**.
+folder in VS Code, and choose **Dev Containers: Reopen in Container** using
+Microsoft's Dev Containers extension. Wait for **Lab ready**.
 
 **Local Linux:** with Docker, Docker Compose and Containerlab installed, run:
 
@@ -25,141 +21,156 @@ folder in VS Code, install Microsoft's **Dev Containers** extension, and select
 bash scripts/start.sh
 ```
 
-Run all commands below from the repository directory **inside the development
-container or Codespace** (or directly on the Linux host). Initial downloads
+Setup automatically starts the router, its Linux peer, the gNMI subscription,
+SNMP polling, Prometheus and Grafana. Do this before class; initial downloads
 and router startup can take several minutes.
 
-## Demo playbook
+Run the commands below in two terminals inside the development container or
+Codespace, from this repository's directory. On local Linux, use the host terminals.
 
-### 1. Show the system and SNMP baseline
+## Demo — 3–4 minutes
 
-```bash
-sudo containerlab inspect -t lab.clab.yml
-docker compose ps
-```
+### 1. Show the received messages
 
-Open Grafana from port **3000** in the VS Code/Codespaces **Ports** tab, or use
-[localhost:3000](http://localhost:3000) locally. SNMP polling is preconfigured.
-The gNMI panels initially have no data because no gNMI subscription is running.
-
-Prometheus requests `/snmp` from the exporter every ten seconds. Each request
-causes real SNMP queries to SR Linux. The exporter reads IF-MIB `ifOperStatus`
-and resolves interface names through `ifName`. No traps are configured.
-
-### 2. Terminal 1 — start the gNMI subscription
-
-Show the configuration:
+Prepare this in Terminal 1 and leave it visible:
 
 ```bash
-cat configs/gnmic.yml
+docker compose logs --follow --tail=20 --no-log-prefix gnmic
 ```
 
-Point out the interface path, `mode: stream`, and `stream-mode: on-change`.
-Then run the standard gNMIc service in the foreground:
+This displays the actual gNMI messages received by the already-running gNMIc
+client. The initial `up` is the current state, not a change event.
+
+Say: **“This client has subscribed to changes in ethernet-1/1's operational state.”**
+
+### 2. Log in to the router
+
+In Terminal 2:
 
 ```bash
-docker compose --profile gnmi run --rm --use-aliases gnmic
+ssh admin@clab-telemetry-srl
 ```
 
-Wait for the initial `up` value and leave it running. Later JSON messages are
-the real updates sent by SR Linux. gNMIc sends them to stdout and its built-in
-Prometheus output. `--use-aliases` lets Prometheus reach this process as `gnmic`.
-Run only one instance at a time.
+Password: `NokiaSrl1!`
 
-Grafana's gNMI panels fill in after Prometheus scrapes the exporter. No separate
-background gNMI subscription is started by the lab.
+Show the interface:
 
-### 3. Terminal 2 — change the interface
-
-After Terminal 1 shows the initial `up`, run:
-
-```bash
-bash scripts/gnmi.sh set \
-  --update '/interface[name=ethernet-1/1]/admin-state:::string:::disable'
-sleep 2
-bash scripts/gnmi.sh set \
-  --update '/interface[name=ethernet-1/1]/admin-state:::string:::enable'
+```text
+show interface ethernet-1/1
 ```
 
-Terminal 1 should show `down` then `up`. Compare Grafana's SNMP and gNMI traces.
-SNMP can miss an outage that falls entirely between its ten-second polls;
-depending on timing, it may also catch it. Repeat as needed.
+Say: **“The interface is currently up. I'll shut it down on the router.”**
 
-`scripts/gnmi.sh` is a convenience wrapper for the real gNMIc CLI. It supplies
-the lab network, router address and credentials; it does not create responses.
+### 3. Shut down the interface
 
-If interrupted with the interface disabled, restore it:
+In the router CLI:
 
-```bash
-bash scripts/gnmi.sh set \
-  --update '/interface[name=ethernet-1/1]/admin-state:::string:::enable'
+```text
+enter candidate
+/interface ethernet-1/1 admin-state disable
+commit now
 ```
 
-To inspect the router directly:
+Pause about five seconds and point to **`down`** in Terminal 1.
 
-```bash
-docker exec -it clab-telemetry-srl sr_cli
+Say: **“Changing the interface caused the router to send a gNMI update.
+I did not send another request for its state.”**
+
+SR Linux calls this `admin-state disable`; it is the equivalent of `shutdown`
+on a Cisco-style CLI. `commit now` applies the candidate configuration.
+
+#### Explain the received message — about 30 seconds
+
+Use the live DOWN message in Terminal 1. This is an example from the lab;
+your timestamps will differ:
+
+```json
+{
+  "source": "clab-telemetry-srl:57400",
+  "subscription-name": "interface-state",
+  "timestamp": 1793742656108667462,
+  "time": "2026-11-03T21:50:56.108667462Z",
+  "updates": [
+    {
+      "Path": "srl_nokia-interfaces:interface[name=ethernet-1/1]/oper-state",
+      "values": {
+        "srl_nokia-interfaces:interface/oper-state": "down"
+      }
+    }
+  ]
+}
 ```
 
-Enter `show interface ethernet-1/1`, then `quit` to leave.
+Point out four things:
 
-### 4. Explain the Grafana results
+| Field | What to say |
+|---|---|
+| `source` | “This identifies the router and its gNMI port.” |
+| `timestamp` / `time` | “The notification has a timestamp; this is its readable UTC form.” |
+| `Path` | “This selects ethernet-1/1's operational state. The prefix identifies the Nokia YANG module.” |
+| `values` | “The router reported DOWN.” |
 
-The timeline displays UP as 1 and DOWN as 0. The SNMP exporter converts IF-MIB
-state into standard enum state-set metrics; gNMIc exposes the received string
-state as metric labels. Grafana's queries normalize them for comparison.
-A raw gNMI table shows those labels.
+Say: **“The update tells us which device, which interface, what state, and when.”**
 
-Two counter panels compare the observations:
+gNMI messages travel as Protocol Buffers over gRPC. This is gNMIc's JSON
+presentation of the received message, with client metadata such as `source`
+and `subscription-name`; it is not the literal wire encoding.
 
-- **Received SNMP / gNMI observations:** successful SNMP polls in the selected
-  time range versus gNMI state updates since the current receiver started.
-  gNMI includes the initial state and excludes sync-only messages.
-- **Received DOWN observations:** SNMP polls that returned DOWN versus gNMI
-  DOWN updates. A long outage may produce several DOWN polls but one gNMI
-  change notification. Initial/resynchronization DOWN updates also count.
+### 4. Bring it back up
 
-The gNMI counts use gNMIc's built-in file-output metrics with standard event
-filters writing to `/dev/null`; no custom collector script is involved. They
-reset when gNMIc restarts. An initial UP followed by DOWN and UP produces
-**3 gNMI observations and 1 DOWN observation**.
+In the router CLI:
 
-Prometheus polls SNMP every **10 seconds** and scrapes gNMIc every **1 second**.
-gNMIc receives changes as they arrive, but Prometheus still samples its latest
-state. Very short transitions can therefore be missing from Grafana even when
-the gNMIc CLI received them. The CLI output and native gNMIc counters retain
-evidence of received updates even when the state plot misses a brief transition.
+```text
+enter candidate
+/interface ethernet-1/1 admin-state enable
+commit now
+```
 
-An exporter being reachable does not prove that its gNMI connection is healthy.
-ON_CHANGE can legitimately be silent. The dashboard displays last received
-state; use the CLI messages/errors to assess the actual subscription.
+Point to **`up`** in Terminal 1. This is the equivalent of `no shutdown`.
 
-Press **Ctrl+C in Terminal 1** to stop gNMIc and remove its temporary container.
-Its state series disappears after Prometheus detects that it is unavailable.
-SNMP polling continues. Run the same command again for a fresh subscription.
+Close with: **“One subscription reported both changes: DOWN and UP.”**
 
-This demonstrates snapshots versus change reporting. SNMP also supports
-notifications, and gNMI can also poll; neither protocol is restricted to the
-mode shown here.
+### 5. Optional Grafana recap
+
+Open port **3000** in the VS Code/Codespaces **Ports** tab, or
+[localhost:3000](http://localhost:3000) locally. Show the interface timeline and
+the observation counters. Keep this brief; the CLI messages are the main demo.
+
+SNMP polls every ten seconds, while gNMI reports changes. A short outage may
+fall between SNMP polls. Prometheus also samples gNMIc's latest state every
+second, so very brief transitions may be absent from the plot even when the
+gNMI messages and counters captured them.
+
+## Useful notes
+
+- No client configuration, Docker profiles, or gNMI Set commands are needed
+  during the presentation. Only the router CLI changes the interface.
+- If SSH is unavailable, enter the same router CLI with
+  `docker exec -it clab-telemetry-srl sr_cli`.
+- Ctrl+C in Terminal 1 stops viewing logs; it does **not** stop the subscription.
+  Use `docker compose stop gnmic` if you want to stop collection.
+- If interrupted with the interface down, repeat the enable block above.
+- SNMP observation counters cover the selected Grafana time range. gNMI
+  counters cover the receiver's current run, including the initial state but
+  excluding sync-only messages. DOWN observations are not unique failures:
+  a long outage can produce several SNMP DOWN polls.
+- The receiver uses standard gNMIc outputs and filters. There is no custom
+  Python collector. SNMP uses the standard Prometheus SNMP exporter.
 
 ## Restart, stop and troubleshoot
 
 ```bash
-bash scripts/start.sh          # Recreate the lab; SNMP starts, gNMI waits for you
-bash scripts/stop.sh           # Remove the lab and monitoring services
-docker compose logs --tail=40 snmp-exporter prometheus
+bash scripts/start.sh       # Recreate the lab and reset monitoring history
+bash scripts/stop.sh        # Remove the lab and monitoring services
+docker compose logs --tail=40 gnmic snmp-exporter prometheus
 docker logs clab-telemetry-srl --tail=40
 ```
 
-Startup also runs on development-container resume. If Grafana does not open,
-forward port 3000 in the **Ports** tab and use its displayed local address.
-Only Grafana is published; the SNMP and gNMI exporter ports remain internal.
+Startup runs automatically when the development container resumes. If Grafana
+does not open, forward port 3000 in the **Ports** tab. Only Grafana is published;
+exporter and management ports remain internal.
 
-The SNMPv2c community (`telemetrylab`) and router credentials (`admin` /
-`NokiaSrl1!`) are disposable lab credentials. gNMI uses TLS with certificate
-verification skipped for the lab's self-signed certificate. Grafana is a
-read-only anonymous viewer. Monitoring history resets on recreation.
-Stop the Codespace after use to conserve account quota.
-
-Configuration references: [gNMIc Prometheus output](https://gnmic.openconfig.net/user_guide/outputs/prometheus_output/)
-and [Prometheus SNMP exporter](https://github.com/prometheus/snmp_exporter).
+The router login and SNMP community (`telemetrylab`) are disposable lab
+credentials. gNMI uses TLS with certificate verification skipped for the lab's
+self-signed certificate. Grafana provides read-only anonymous access. Stop the
+Codespace after use to conserve account quota.

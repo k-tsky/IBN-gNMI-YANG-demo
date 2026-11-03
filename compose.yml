@@ -7,7 +7,7 @@ services:
     networks: [lab]
   gnmic:
     image: ghcr.io/openconfig/gnmic:0.42.1
-    profiles: [gnmi]
+    restart: unless-stopped
     command: ["--config", "/etc/gnmic/config.yml", "subscribe"]
     volumes:
       - ./configs/gnmic.yml:/etc/gnmic/config.yml:ro

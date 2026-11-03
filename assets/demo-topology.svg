@@ -41,7 +41,7 @@
   <text x="233" y="403" class="detail">Automatic polling</text>
   <rect x="379" y="345" width="180" height="82" rx="12" class="node"/>
   <text x="469" y="378" class="name">gNMIc</text>
-  <text x="469" y="403" class="detail">Started manually</text>
+  <text x="469" y="403" class="detail">Automatic subscription</text>
   <path d="M333 408H355V445H660V427" class="flow"/>
   <path d="M559 386H602" class="flow"/>
   <rect x="604" y="345" width="149" height="82" rx="12" class="node"/>

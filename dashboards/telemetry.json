@@ -27,7 +27,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "SNMP is polled every **10 seconds**. Start gNMIc manually using the README; its latest received state is scraped every **1 second**.\n\n**1 = UP, 0 = DOWN.** The raw table shows the router's received gNMI state labels. Very short transitions may be missed by Prometheus; the gNMIc CLI shows received notifications. Exporter reachability does not prove a healthy subscription.\n\nCounters: SNMP covers the selected time range; gNMI covers the current receiver run. DOWN counters count received DOWN observations, not unique outages."
+        "content": "SNMP is polled every **10 seconds**. gNMIc subscribes automatically; its latest received state is scraped every **1 second**.\n\n**1 = UP, 0 = DOWN.** The raw table shows the router's received gNMI state labels. Very short transitions may be missed by Prometheus; the gNMIc CLI shows received notifications. Exporter reachability does not prove a healthy subscription.\n\nCounters: SNMP covers the selected time range; gNMI covers the current receiver run. DOWN counters count received DOWN observations, not unique outages."
       }
     },
     {

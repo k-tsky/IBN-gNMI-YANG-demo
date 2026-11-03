@@ -6,7 +6,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: for script in scripts/*.sh; do bash -n "$script"; done
-      - run: docker compose --profile gnmi config --quiet
+      - run: docker compose config --quiet
       - run: python3 -m json.tool dashboards/telemetry.json > /dev/null
       - run: >-
           docker run --rm --network none
