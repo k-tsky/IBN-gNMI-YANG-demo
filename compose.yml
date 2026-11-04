@@ -1,10 +1,19 @@
 services:
-  snmp-exporter:
-    image: prom/snmp-exporter:v0.29.0
+  yang-push:
+    build: receivers/yang-push
+    image: ibn-yang-push-receiver:netcalyx-0.3.0-telegraf-1.36.4
+    command: ["--quiet", "--config", "/etc/telegraf/telegraf.conf"]
     restart: unless-stopped
     volumes:
-      - ./configs/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
-    networks: [lab]
+      - ./configs/yang-push.toml:/etc/telegraf/telegraf.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q ':270F ' /proc/net/udp && grep -q ':2439 ' /proc/net/tcp /proc/net/tcp6"]
+      interval: 2s
+      timeout: 1s
+      retries: 15
+    networks:
+      lab:
+        ipv4_address: 172.20.20.10
   gnmic:
     image: ghcr.io/openconfig/gnmic:0.42.1
     restart: unless-stopped

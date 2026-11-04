@@ -1,16 +1,16 @@
-username: admin
-password: NokiaSrl1!
-skip-verify: true
+username: clab
+password: clab@123
+insecure: true
 encoding: json_ietf
 api-server:
   address: :7890
   enable-metrics: true
 targets:
-  clab-telemetry-srl:57400:
+  clab-telemetry-xrd:9339:
 subscriptions:
   interface-state:
     paths:
-      - /interface[name=ethernet-1/1]/oper-state
+      - openconfig-interfaces:/interfaces/interface[name=GigabitEthernet0/0/0/0]/state/oper-status
     mode: stream
     stream-mode: on-change
 outputs:
@@ -42,7 +42,7 @@ outputs:
 processors:
   interface-observations:
     event-allow:
-      condition: '.tags.interface_name == "ethernet-1/1" and (.values | length > 0)'
+      condition: '.tags.interface_name == "GigabitEthernet0/0/0/0" and any(.values | to_entries[]; .key | endswith("/oper-status"))'
   interface-down:
     event-allow:
-      condition: '.tags.interface_name == "ethernet-1/1" and any(.values[]; . == "down")'
+      condition: '.tags.interface_name == "GigabitEthernet0/0/0/0" and any(.values | to_entries[]; (.key | endswith("/oper-status")) and (.value | tostring | split(":") | last) == "DOWN")'

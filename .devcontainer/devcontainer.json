@@ -1,5 +1,5 @@
 {
-  "name": "SNMP polling vs gNMI telemetry",
+  "name": "gNMI and YANG Push interface events",
   "image": "ghcr.io/srl-labs/containerlab/devcontainer-dind-slim:0.68.0",
   "privileged": true,
   "hostRequirements": {"cpus": 4, "memory": "8gb", "storage": "32gb"},

@@ -1,10 +1,13 @@
 name: telemetry
+mgmt:
+  network: clab
+  ipv4-subnet: 172.20.20.0/24
 topology:
   nodes:
-    srl:
-      kind: nokia_srlinux
-      image: ghcr.io/nokia/srlinux:24.10.1
-      startup-config: configs/srl.cli
+    xrd:
+      kind: cisco_xrd
+      image: xrd-control-plane:26.2.1
+      startup-config: configs/xrd.cfg
     peer:
       kind: linux
       image: alpine:3.21.3
@@ -12,4 +15,4 @@ topology:
       exec:
         - ip link set eth1 up
   links:
-    - endpoints: ["srl:e1-1", "peer:eth1"]
+    - endpoints: ["xrd:Gi0-0-0-0", "peer:eth1"]

@@ -1,0 +1,78 @@
+[agent]
+  interval = "1s"
+  flush_interval = "1s"
+  omit_hostname = true
+  quiet = true
+
+# NetCalyx handles UDP-Notif and JSON decoding. Keep the decoded payload in logs
+# and pass only the monitored interface's actual state to Telegraf's JSON parser.
+[[inputs.execd]]
+  command = ["/bin/bash", "-o", "pipefail", "-c", '''
+/usr/local/bin/netcalyx-udp-notif | while IFS= read -r packet; do
+  payload=$(printf '%s\n' "$packet" | jq -c '.payload // empty') || exit
+  [ -n "$payload" ] || continue
+  printf '%s\n' "$payload" | jq . > /proc/1/fd/1 || exit
+  printf '%s\n' "$payload" |
+    jq -c '
+      select(."ietf-yp-notification:envelope".contents |
+        (."ietf-yang-push:push-update".id // ."ietf-yang-push:push-change-update".id) == 100) |
+      [.. | objects | select(.name? == "GigabitEthernet0/0/0/0" and has("oper-status"))] |
+      last // empty
+    ' || exit
+done
+''']
+  signal = "none"
+  environment = ["RUST_LOG=error"]
+  stop_on_error = true
+  data_format = "json_v2"
+
+  [[inputs.execd.json_v2]]
+    measurement_name = "yang_push_interface"
+    [[inputs.execd.json_v2.tag]]
+      path = "name"
+      rename = "interface_name"
+    [[inputs.execd.json_v2.field]]
+      path = "oper-status"
+      rename = "oper_status"
+      type = "string"
+
+[[processors.defaults]]
+  order = 1
+  [processors.defaults.fields]
+    observations = 1
+
+[[processors.enum]]
+  order = 2
+  [[processors.enum.mapping]]
+    fields = ["oper_status"]
+    dest = "state"
+    default = 0
+    [processors.enum.mapping.value_mappings]
+      UP = 1
+  [[processors.enum.mapping]]
+    fields = ["oper_status"]
+    dest = "down_observations"
+    default = 0
+    [processors.enum.mapping.value_mappings]
+      DOWN = 1
+
+[[processors.cumulative_sum]]
+  order = 3
+  fields = ["observations", "down_observations"]
+
+[[processors.rename]]
+  order = 4
+  [[processors.rename.replace]]
+    field = "observations_sum"
+    dest = "observations_total"
+  [[processors.rename.replace]]
+    field = "down_observations_sum"
+    dest = "down_observations_total"
+
+[[outputs.prometheus_client]]
+  listen = ":9273"
+  expiration_interval = "0s"
+  string_as_label = false
+  fieldinclude = ["state", "observations_total", "down_observations_total"]
+  [outputs.prometheus_client.metric_types]
+    counter = ["*observations_total"]

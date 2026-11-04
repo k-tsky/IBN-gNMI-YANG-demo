@@ -1,8 +1,8 @@
 {
   "uid": "gnmi-demo",
-  "title": "SNMP polling | gNMI ON_CHANGE",
+  "title": "gNMI and YANG Push interface events",
   "schemaVersion": 40,
-  "version": 3,
+  "version": 5,
   "editable": false,
   "refresh": "5s",
   "time": {
@@ -12,12 +12,12 @@
   "tags": [
     "containerlab",
     "gnmi",
-    "snmp"
+    "yang-push"
   ],
   "panels": [
     {
       "id": 1,
-      "title": "Real SNMP polling vs gNMI ON_CHANGE",
+      "title": "Real gNMI and YANG Push ON_CHANGE",
       "type": "text",
       "gridPos": {
         "x": 0,
@@ -27,12 +27,12 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "SNMP is polled every **10 seconds**. gNMIc subscribes automatically; its latest received state is scraped every **1 second**.\n\n**1 = UP, 0 = DOWN.** The raw table shows the router's received gNMI state labels. Very short transitions may be missed by Prometheus; the gNMIc CLI shows received notifications. Exporter reachability does not prove a healthy subscription.\n\nCounters: SNMP covers the selected time range; gNMI covers the current receiver run. DOWN counters count received DOWN observations, not unique outages."
+        "content": "Both receivers monitor **GigabitEthernet0/0/0/0**. Prometheus scrapes their latest received state every **1 second**.\n\n**1 = UP, 0 = DOWN** for this shutdown/restore demo. Very short transitions can be absent from the plot even when the receiver captured them; the CLI logs show the actual notifications. A successful scrape does not prove a healthy subscription.\n\nCounters cover the current run of each receiver agent, include initial state, and exclude lifecycle/sync-only messages. XRd can send several notifications for one interface transition; DOWN observations are not unique outages."
       }
     },
     {
       "id": 2,
-      "title": "ethernet-1/1 \u2014 last observed state",
+      "title": "GigabitEthernet0/0/0/0 — last observed state",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -46,9 +46,9 @@
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "max(ifOperStatus{job=\"snmp\",ifName=\"ethernet-1/1\",ifOperStatus=\"up\"})",
-          "legendFormat": "SNMP polling",
+          "refId": "B",
+          "expr": "max(openconfig_interfaces_interfaces_interface_state_oper_status{job=\"gnmi\",interface_name=\"GigabitEthernet0/0/0/0\",oper_status=\"UP\"}) or (0 * max(openconfig_interfaces_interfaces_interface_state_oper_status{job=\"gnmi\",interface_name=\"GigabitEthernet0/0/0/0\"}))",
+          "legendFormat": "gNMI ON_CHANGE",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -56,9 +56,9 @@
           "interval": "1s"
         },
         {
-          "refId": "B",
-          "expr": "max(srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\",oper_state=\"up\"}) or (0 * max(srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\"}))",
-          "legendFormat": "gNMI ON_CHANGE",
+          "refId": "C",
+          "expr": "max(yang_push_interface_state{job=\"yang-push\",interface_name=\"GigabitEthernet0/0/0/0\"})",
+          "legendFormat": "YANG Push ON_CHANGE",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -95,7 +95,38 @@
             "fillOpacity": 5
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gNMI ON_CHANGE"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "YANG Push ON_CHANGE"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
@@ -107,7 +138,7 @@
     {
       "id": 7,
       "title": "Received DOWN observations",
-      "description": "SNMP: successful DOWN polls in the selected time range. gNMI: received DOWN state updates in the current gNMIc run, counted by its standard filtered event output. A long outage may produce several DOWN polls; these are observations, not unique physical failures. Initial/resync DOWN notifications also count.",
+      "description": "Received DOWN observations during the current run of each receiver agent. Initial/resync DOWN updates count. Several notifications can describe one interface transition.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -121,18 +152,18 @@
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "sum(sum_over_time(ifOperStatus{job=\"snmp\",ifName=\"ethernet-1/1\",ifOperStatus=\"down\"}[$__range]))",
-          "legendFormat": "SNMP polling",
+          "refId": "B",
+          "expr": "sum(gnmic_file_output_number_messages_writes_total{job=\"gnmi-internal\",name=\"down-observations\"})",
+          "legendFormat": "gNMI ON_CHANGE",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           }
         },
         {
-          "refId": "B",
-          "expr": "sum(gnmic_file_output_number_messages_writes_total{job=\"gnmi-internal\",name=\"down-observations\"})",
-          "legendFormat": "gNMI ON_CHANGE",
+          "refId": "C",
+          "expr": "sum(yang_push_interface_down_observations_total{job=\"yang-push\",interface_name=\"GigabitEthernet0/0/0/0\"})",
+          "legendFormat": "YANG Push ON_CHANGE",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -151,14 +182,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "SNMP polling"
+              "options": "gNMI ON_CHANGE"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
-                  "mode": "fixed",
-                  "fixedColor": "green"
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -166,14 +197,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "gNMI ON_CHANGE"
+              "options": "YANG Push ON_CHANGE"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
-                  "mode": "fixed",
-                  "fixedColor": "yellow"
+                  "fixedColor": "green",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -196,8 +227,8 @@
     },
     {
       "id": 8,
-      "title": "Received SNMP / gNMI observations",
-      "description": "SNMP: successful interface polls in the selected time range (the UP state-set series contains one 0/1 sample per poll). gNMI: received interface state updates since this gNMIc run started, including initial state and excluding sync-only messages. gNMI totals reset on receiver restart. Both display their last observed count when collection stops.",
+      "title": "Received gNMI / YANG Push observations",
+      "description": "Received interface oper-status observations in the current run of each receiver agent. Includes initial state and repeated reports; excludes lifecycle/sync-only messages. Counters reset when the corresponding agent restarts.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -211,18 +242,18 @@
       },
       "targets": [
         {
-          "refId": "A",
-          "expr": "sum(count_over_time(ifOperStatus{job=\"snmp\",ifName=\"ethernet-1/1\",ifOperStatus=\"up\"}[$__range]))",
-          "legendFormat": "SNMP polling",
+          "refId": "B",
+          "expr": "sum(gnmic_file_output_number_messages_writes_total{job=\"gnmi-internal\",name=\"observations\"})",
+          "legendFormat": "gNMI ON_CHANGE",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           }
         },
         {
-          "refId": "B",
-          "expr": "sum(gnmic_file_output_number_messages_writes_total{job=\"gnmi-internal\",name=\"observations\"})",
-          "legendFormat": "gNMI ON_CHANGE",
+          "refId": "C",
+          "expr": "sum(yang_push_interface_observations_total{job=\"yang-push\",interface_name=\"GigabitEthernet0/0/0/0\"})",
+          "legendFormat": "YANG Push ON_CHANGE",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -241,14 +272,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "SNMP polling"
+              "options": "gNMI ON_CHANGE"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
-                  "mode": "fixed",
-                  "fixedColor": "green"
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -256,14 +287,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "gNMI ON_CHANGE"
+              "options": "YANG Push ON_CHANGE"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
-                  "mode": "fixed",
-                  "fixedColor": "yellow"
+                  "fixedColor": "green",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -285,8 +316,8 @@
       }
     },
     {
-      "id": 3,
-      "title": "SNMP last state",
+      "id": 4,
+      "title": "gNMI last state",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -301,68 +332,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max(ifOperStatus{job=\"snmp\",ifName=\"ethernet-1/1\",ifOperStatus=\"up\"})",
-          "legendFormat": "SNMP",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "interval": "1s"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "min": 0,
-          "max": 1,
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "DOWN",
-                  "color": "red"
-                },
-                "1": {
-                  "text": "UP",
-                  "color": "green"
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "last"
-          ],
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 4,
-      "title": "gNMI last state",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 6,
-        "y": 18,
-        "w": 6,
-        "h": 5
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max(srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\",oper_state=\"up\"}) or (0 * max(srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\"}))",
+          "expr": "max(openconfig_interfaces_interfaces_interface_state_oper_status{job=\"gnmi\",interface_name=\"GigabitEthernet0/0/0/0\",oper_status=\"UP\"}) or (0 * max(openconfig_interfaces_interfaces_interface_state_oper_status{job=\"gnmi\",interface_name=\"GigabitEthernet0/0/0/0\"}))",
           "legendFormat": "gNMI",
           "datasource": {
             "type": "prometheus",
@@ -408,7 +378,7 @@
     },
     {
       "id": 5,
-      "title": "Prometheus scrape reachability",
+      "title": "Receiver metrics reachability",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -423,7 +393,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "up{job=~\"snmp|gnmi\"}",
+          "expr": "up{job=~\"gnmi|yang-push\"}",
           "legendFormat": "{{job}}",
           "datasource": {
             "type": "prometheus",
@@ -469,7 +439,7 @@
     },
     {
       "id": 6,
-      "title": "Raw gNMIc metrics \u2014 received state is in oper_state label",
+      "title": "Raw gNMIc metrics — received state is in oper_status label",
       "type": "table",
       "datasource": {
         "type": "prometheus",
@@ -478,13 +448,110 @@
       "gridPos": {
         "x": 0,
         "y": 23,
-        "w": 24,
+        "w": 12,
         "h": 7
       },
       "targets": [
         {
           "refId": "A",
-          "expr": "srl_nokia_interfaces_interface_oper_state{job=\"gnmi\",interface_name=\"ethernet-1/1\"}",
+          "expr": "openconfig_interfaces_interfaces_interface_state_oper_status{job=\"gnmi\",interface_name=\"GigabitEthernet0/0/0/0\"}",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "interval": "1s",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      }
+    },
+    {
+      "id": 9,
+      "title": "YANG Push last state",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 18,
+        "w": 6,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(yang_push_interface_state{job=\"yang-push\",interface_name=\"GigabitEthernet0/0/0/0\"})",
+          "legendFormat": "YANG Push",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "interval": "1s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Raw YANG Push metric - UP=1, DOWN=0",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "yang_push_interface_state{job=\"yang-push\",interface_name=\"GigabitEthernet0/0/0/0\"}",
           "legendFormat": "",
           "datasource": {
             "type": "prometheus",

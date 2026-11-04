@@ -2,22 +2,9 @@ global:
   scrape_interval: 1s
   evaluation_interval: 1s
 scrape_configs:
-  - job_name: snmp
-    scrape_interval: 10s
-    scrape_timeout: 8s
-    metrics_path: /snmp
-    params:
-      auth: [lab_v2]
-      module: [interfaces]
+  - job_name: yang-push
     static_configs:
-      - targets: [clab-telemetry-srl]
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: snmp-exporter:9116
+      - targets: [yang-push:9273]
   - job_name: gnmi
     static_configs:
       - targets: [gnmic:9804]

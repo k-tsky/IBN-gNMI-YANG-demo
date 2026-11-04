@@ -1,7 +1,0 @@
-enter candidate
-/ interface ethernet-1/1 admin-state enable
-/ system snmp network-instance mgmt admin-state enable
-/ system snmp access-group demo admin-state enable
-/ system snmp access-group demo security-level no-auth-no-priv
-/ system snmp access-group demo community-entry lab community telemetrylab
-commit now
