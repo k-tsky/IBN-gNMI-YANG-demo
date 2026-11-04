@@ -1,26 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="490" viewBox="0 0 1000 490" role="img" aria-labelledby="title desc">
-  <title id="title">SNMP polling and gNMI telemetry demo network</title>
-  <desc id="desc">A Nokia SR Linux router connects to a Linux peer over Ethernet. The SNMP exporter polls the router every ten seconds and gNMIc receives ON_CHANGE updates. Both expose metrics to Prometheus, which Grafana queries.</desc>
+  <title id="title">gNMI and YANG Push interface event demo network</title>
+  <desc id="desc">A Cisco XRd router connects to a Linux peer over Ethernet. gNMIc receives ON_CHANGE updates over gRPC and NetCalyx receives YANG Push notifications over UDP-Notif from the same interface. Telegraf exports the NetCalyx observations as metrics. Prometheus and Grafana visualize both streams.</desc>
   <defs>
-    <marker id="snmp-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#6750a4"/></marker>
-    <marker id="gnmi-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#007d72"/></marker>
-    <marker id="data-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#526176"/></marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#007d72"/></marker>
+    <marker id="metrics-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#526176"/></marker>
     <style>
       text{font-family:Arial,Helvetica,sans-serif;fill:#243147;text-anchor:middle}
       .heading{font-size:17px;font-weight:bold;letter-spacing:1px}
       .name{font-size:18px;font-weight:bold}
       .detail{font-size:14px;fill:#526176}
       .node{fill:#fff;stroke:#aab6c6;stroke-width:1.5}
-      .flow{fill:none;stroke:#526176;stroke-width:2;marker-end:url(#data-arrow)}
+      .flow{fill:none;stroke:#526176;stroke-width:2;marker-end:url(#metrics-arrow)}
     </style>
   </defs>
   <rect width="1000" height="490" rx="16" fill="#fff"/>
   <rect x="28" y="24" width="944" height="174" rx="14" fill="#f3f6fa" stroke="#ced7e3"/>
   <text x="500" y="56" class="heading">CONTAINERLAB NETWORK</text>
   <rect x="170" y="78" width="230" height="96" rx="12" class="node"/>
-  <path d="M190 110h26m-7-6 7 6-7 6m7 15h-26m7-6-7 6 7 6" fill="none" stroke="#526176" stroke-width="2"/>
-  <text x="300" y="114" class="name">Nokia SR Linux</text>
-  <text x="285" y="145" class="detail">ethernet-1/1</text>
+  <circle cx="205" cy="114" r="19" fill="none" stroke="#526176" stroke-width="2"/>
+  <path d="M192 114h26m-6-5 6 5-6 5m-7-18v26m-5-6 5 6 5-6" fill="none" stroke="#526176" stroke-width="2"/>
+  <text x="310" y="114" class="name">Cisco XRd</text>
+  <text x="285" y="145" class="detail">Gi0/0/0/0</text>
   <path d="M400 126H638" fill="none" stroke="#526176" stroke-width="3"/>
   <text x="519" y="113" class="detail">Ethernet link</text>
   <rect x="638" y="89" width="190" height="74" rx="12" class="node"/>
@@ -28,27 +28,29 @@
   <path d="M669 129v7m-9 0h18" stroke="#526176" stroke-width="2"/>
   <text x="747" y="120" class="name">Linux host</text>
   <text x="747" y="144" class="detail">Alpine peer</text>
-  <rect x="28" y="288" width="944" height="176" rx="14" fill="#f6f4fa" stroke="#d8d0e7"/>
+  <rect x="28" y="288" width="944" height="186" rx="14" fill="#f6f4fa" stroke="#d8d0e7"/>
   <text x="500" y="318" class="heading">MONITORING STACK</text>
-  <path d="M232 174V344" fill="none" stroke="#6750a4" stroke-width="2.5" stroke-dasharray="7 5" marker-start="url(#snmp-arrow)" marker-end="url(#snmp-arrow)"/>
-  <text x="147" y="226" font-size="16" font-weight="bold" style="fill:#6750a4">SNMP polling</text>
-  <text x="147" y="250" class="detail">Every 10 seconds</text>
-  <path d="M337 174V220H469V344" fill="none" stroke="#007d72" stroke-width="3" marker-end="url(#gnmi-arrow)"/>
-  <text x="585" y="242" font-size="16" font-weight="bold" style="fill:#007d72">gNMI over TLS</text>
-  <text x="585" y="265" class="detail">STREAM / ON_CHANGE</text>
-  <rect x="133" y="345" width="200" height="82" rx="12" class="node"/>
-  <text x="233" y="378" class="name">SNMP exporter</text>
-  <text x="233" y="403" class="detail">Automatic polling</text>
-  <rect x="379" y="345" width="180" height="82" rx="12" class="node"/>
-  <text x="469" y="378" class="name">gNMIc</text>
-  <text x="469" y="403" class="detail">Automatic subscription</text>
-  <path d="M333 408H355V445H660V427" class="flow"/>
-  <path d="M559 386H602" class="flow"/>
-  <rect x="604" y="345" width="149" height="82" rx="12" class="node"/>
-  <text x="679" y="378" class="name">Prometheus</text>
-  <text x="679" y="403" class="detail">Metrics storage</text>
-  <path d="M753 386H790" class="flow"/>
-  <rect x="792" y="345" width="150" height="82" rx="12" class="node"/>
-  <text x="867" y="378" class="name">Grafana</text>
-  <text x="867" y="403" class="detail">Visualization</text>
+  <path d="M232 174V270H138V345" fill="none" stroke="#007d72" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="138" y="225" font-size="16" font-weight="bold" style="fill:#007d72">gNMI / gRPC</text>
+  <text x="138" y="250" class="detail">STREAM / ON_CHANGE</text>
+  <path d="M337 174V218H854V345" fill="none" stroke="#007d72" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="650" y="245" font-size="16" font-weight="bold" style="fill:#007d72">YANG Push / UDP-Notif</text>
+  <text x="650" y="269" class="detail">Configured on-change subscription</text>
+  <rect x="48" y="345" width="180" height="82" rx="12" class="node"/>
+  <text x="138" y="378" class="name">gNMIc</text>
+  <text x="138" y="403" class="detail">gNMI receiver</text>
+  <path d="M228 386H281" class="flow"/>
+  <rect x="284" y="345" width="180" height="82" rx="12" class="node"/>
+  <text x="374" y="378" class="name">Prometheus</text>
+  <text x="374" y="403" class="detail">Both streams</text>
+  <path d="M464 386H517" class="flow"/>
+  <rect x="520" y="345" width="180" height="82" rx="12" class="node"/>
+  <text x="610" y="378" class="name">Grafana</text>
+  <text x="610" y="403" class="detail">State and counters</text>
+  <rect x="756" y="345" width="196" height="82" rx="12" class="node"/>
+  <text x="854" y="372" class="name">NetCalyx</text>
+  <text x="854" y="393" class="detail">YANG Push receiver</text>
+  <text x="854" y="414" class="detail">Telegraf metrics</text>
+  <path d="M854 427V448H374V427" class="flow"/>
+  <text x="624" y="467" font-size="12">YANG Push metrics</text>
 </svg>
